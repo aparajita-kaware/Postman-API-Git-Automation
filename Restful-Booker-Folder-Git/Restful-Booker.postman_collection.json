@@ -1,0 +1,1511 @@
+{
+  "info": {
+    "_postman_id": "8a0cad86-dcf8-4603-b4c5-996a06cd4f56",
+    "name": "Restful-Booker",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "60362778",
+    "_collection_link": "https://go.postman.co/collection/60362778-8a0cad86-dcf8-4603-b4c5-996a06cd4f56?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "E2E TestScenarios-CreateAndPut",
+      "item": [
+        {
+          "name": "CreateAuth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body safely\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE & REASON ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#2 Status text is OK\", function () {\r",
+                  "    pm.response.to.have.status(\"OK\");\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#3 Content-Type header is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#4 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE TOKEN IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Extract token and update environment variable\", function () {\r",
+                  "    // Assert response contains token property\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"token\");\r",
+                  "    \r",
+                  "    const tokenValue = responseDataJSON[\"token\"];\r",
+                  "\r",
+                  "    // Validate token is a non-empty string\r",
+                  "    pm.expect(tokenValue).to.be.a(\"string\").that.is.not.empty;\r",
+                  "\r",
+                  "    // Dynamically update environment variable key 'token'\r",
+                  "    pm.environment.set(\"token\", tokenValue);\r",
+                  "    console.log(\"[POST /auth] Updated 'token' in Environment:\", tokenValue);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. JSON SCHEMA VALIDATION\r",
+                  "// ============================================================\r",
+                  "const tokenSchema = {\r",
+                  "    \"type\": \"object\",\r",
+                  "    \"properties\": {\r",
+                  "        \"token\": { \"type\": \"string\" }\r",
+                  "    },\r",
+                  "    \"required\": [\"token\"]\r",
+                  "};\r",
+                  "\r",
+                  "pm.test(\"TC#6 Validate response JSON schema\", function () {\r",
+                  "    pm.expect(tv4.validate(responseDataJSON, tokenSchema)).to.be.true;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\" : \"admin\",\r\n    \"password\" : \"password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/auth",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CreateBooking",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ============================================================\r",
+                  "// PRE-REQUEST SCRIPT: GENERATE RANDOM DATA FOR POST REQUEST\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "// 1. Generate dynamic string values\r",
+                  "const randomId = Math.floor(Math.random() * 1000);\r",
+                  "const fname = \"User_\" + randomId;\r",
+                  "const lname = \"Test_\" + Math.random().toString(36).substring(7);\r",
+                  "\r",
+                  "// 2. Generate dynamic numeric & boolean values\r",
+                  "const price = Math.floor(Math.random() * (1000 - 100 + 1)) + 100;\r",
+                  "const deposit = Math.random() < 0.5; // True or false\r",
+                  "\r",
+                  "// 3. Generate dynamic checkin and checkout dates\r",
+                  "const today = new Date();\r",
+                  "const checkin = today.toISOString().split('T')[0];\r",
+                  "\r",
+                  "const futureDate = new Date(today);\r",
+                  "futureDate.setDate(today.getDate() + 5);\r",
+                  "const checkout = futureDate.toISOString().split('T')[0];\r",
+                  "\r",
+                  "// 4. Set dynamic picklist item\r",
+                  "const needsOptions = [\"Breakfast\", \"Lunch\", \"Airport Pickup\", \"Extra Bed\"];\r",
+                  "const needs = needsOptions[Math.floor(Math.random() * needsOptions.length)];\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// SET ENVIRONMENT VARIABLES IN POSTMAN\r",
+                  "// ============================================================\r",
+                  "pm.environment.set(\"fname\", fname);\r",
+                  "pm.environment.set(\"lname\", lname);\r",
+                  "pm.environment.set(\"price\", price);\r",
+                  "pm.environment.set(\"deposit\", deposit);\r",
+                  "pm.environment.set(\"checkin\", checkin);\r",
+                  "pm.environment.set(\"checkout\", checkout);\r",
+                  "pm.environment.set(\"needs\", needs);\r",
+                  "\r",
+                  "console.log(`[Pre-Request POST] Generated dynamic booking for ${fname} ${lname}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE ASSERTION\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK or 201 Created\", function () {\r",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#2 Response header Content-Type is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#3 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE BOOKING ID IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#4 Extract bookingid and update environment variable\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"bookingid\");\r",
+                  "    \r",
+                  "    const dynamicBookingId = responseDataJSON[\"bookingid\"];\r",
+                  "    \r",
+                  "    pm.expect(dynamicBookingId).to.not.be.null;\r",
+                  "    pm.expect(dynamicBookingId).to.be.a(\"number\");\r",
+                  "\r",
+                  "    // Dynamically set / update the environment variable key 'booking_id'\r",
+                  "    pm.environment.set(\"booking_id\", dynamicBookingId);\r",
+                  "    console.log(\"[POST Response] Successfully updated 'booking_id' in environment:\", dynamicBookingId);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. PAYLOAD VALIDATIONS & DATA MATCHING\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Verify response body structure and field values\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"booking\");\r",
+                  "    const booking = responseDataJSON.booking;\r",
+                  "\r",
+                  "    // Verify response matches pre-request variables sent in request\r",
+                  "    pm.expect(booking.firstname).to.eql(pm.environment.get(\"fname\"));\r",
+                  "    pm.expect(booking.lastname).to.eql(pm.environment.get(\"lname\"));\r",
+                  "    pm.expect(booking.totalprice).to.eql(pm.environment.get(\"price\"));\r",
+                  "    pm.expect(booking.depositpaid).to.eql(pm.environment.get(\"deposit\"));\r",
+                  "    pm.expect(booking.bookingdates.checkin).to.eql(pm.environment.get(\"checkin\"));\r",
+                  "    pm.expect(booking.bookingdates.checkout).to.eql(pm.environment.get(\"checkout\"));\r",
+                  "    pm.expect(booking.additionalneeds).to.eql(pm.environment.get(\"needs\"));\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"firstname\": \"{{fname}}\",\r\n    \"lastname\": \"{{lname}}\",\r\n    \"totalprice\": {{price}},\r\n    \"depositpaid\": {{deposit}},\r\n    \"bookingdates\": {\r\n        \"checkin\": \"{{checkin}}\",\r\n        \"checkout\": \"{{checkout}}\"\r\n    },\r\n    \"additionalneeds\": \"{{needs}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/booking",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UpdateRecord",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ============================================================\r",
+                  "// PRE-REQUEST SCRIPT: GENERATE DYNAMIC RANDOM DATA FOR PUT\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "// 1. Generate dynamic string values\r",
+                  "const randomId = Math.floor(Math.random() * 1000);\r",
+                  "const putFirstname = \"UpdatedUser_\" + randomId;\r",
+                  "const putLastname = \"UpdatedTest_\" + Math.random().toString(36).substring(7);\r",
+                  "\r",
+                  "// 2. Generate dynamic numeric & boolean values\r",
+                  "const putTotalPrice = Math.floor(Math.random() * (900 - 100 + 1)) + 100;\r",
+                  "const putDepositPaid = Math.random() < 0.5; // True or False randomly\r",
+                  "\r",
+                  "// 3. Generate dynamic checkin and checkout dates\r",
+                  "const today = new Date();\r",
+                  "const putCheckin = today.toISOString().split('T')[0];\r",
+                  "\r",
+                  "const futureDate = new Date(today);\r",
+                  "futureDate.setDate(today.getDate() + 7);\r",
+                  "const putCheckout = futureDate.toISOString().split('T')[0];\r",
+                  "\r",
+                  "// 4. Select dynamic picklist item\r",
+                  "const needsList = [\"Lunch\", \"Dinner\", \"Extra Pillows\", \"Airport Pickup\", \"Late Checkout\"];\r",
+                  "const putNeeds = needsList[Math.floor(Math.random() * needsList.length)];\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// SET ENVIRONMENT VARIABLES IN POSTMAN\r",
+                  "// ============================================================\r",
+                  "pm.environment.set(\"put_fname\", putFirstname);\r",
+                  "pm.environment.set(\"put_lname\", putLastname);\r",
+                  "pm.environment.set(\"put_price\", putTotalPrice);\r",
+                  "pm.environment.set(\"put_deposit\", putDepositPaid);\r",
+                  "pm.environment.set(\"put_checkin\", putCheckin);\r",
+                  "pm.environment.set(\"put_checkout\", putCheckout);\r",
+                  "pm.environment.set(\"put_needs\", putNeeds);\r",
+                  "\r",
+                  "console.log(`[Pre-Request PUT] Generated dynamic payload data for: ${putFirstname} ${putLastname}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Safely parse JSON response body\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE ASSERTION\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#2 Status text is OK\", function () {\r",
+                  "    pm.response.to.have.status(\"OK\");\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#3 Content-Type header contains application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#4 Response time is below 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. PAYLOAD & FIELD VALIDATIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Verify updated payload values match pre-request variables\", function () {\r",
+                  "    // Prevent script execution failure if server returns a non-JSON error like 403 Forbidden\r",
+                  "    pm.expect(responseDataJSON, \"Response body is not valid JSON. Check auth token or booking ID.\").to.not.be.null;\r",
+                  "\r",
+                  "    pm.expect(responseDataJSON.firstname).to.eql(pm.environment.get(\"put_fname\"));\r",
+                  "    pm.expect(responseDataJSON.lastname).to.eql(pm.environment.get(\"put_lname\"));\r",
+                  "    pm.expect(responseDataJSON.totalprice).to.eql(pm.environment.get(\"put_price\"));\r",
+                  "    pm.expect(responseDataJSON.depositpaid).to.eql(pm.environment.get(\"put_deposit\"));\r",
+                  "    pm.expect(responseDataJSON.bookingdates.checkin).to.eql(pm.environment.get(\"put_checkin\"));\r",
+                  "    pm.expect(responseDataJSON.bookingdates.checkout).to.eql(pm.environment.get(\"put_checkout\"));\r",
+                  "    pm.expect(responseDataJSON.additionalneeds).to.eql(pm.environment.get(\"put_needs\"));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"firstname\": \"{{put_fname}}\",\r\n    \"lastname\": \"{{put_lname}}\",\r\n    \"totalprice\": {{put_price}},\r\n    \"depositpaid\": {{put_deposit}},\r\n    \"bookingdates\": {\r\n        \"checkin\": \"{{put_checkin}}\",\r\n        \"checkout\": \"{{put_checkout}}\"\r\n    },\r\n    \"additionalneeds\": \"{{put_needs}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getSingleRecordById",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "//Checking status code\r",
+                  "pm.test(\"Status code is 200\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "//checking response time\r",
+                  "pm.test(\"Response time is less than 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// Safely parse the JSON response body\r",
+                  "let responseData;\r",
+                  "try {\r",
+                  "    responseData = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseData = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// TRANSPORT ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "\r",
+                  "pm.test(\"TC#1 Content-Type header is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. JSON SCHEMA & DATA TYPE VALIDATION (CONTRACT CHECK)\r",
+                  "// ============================================================\r",
+                  "const getBookingSchema = {\r",
+                  "    \"type\": \"object\",\r",
+                  "    \"properties\": {\r",
+                  "        \"firstname\": { \"type\": \"string\" },\r",
+                  "        \"lastname\": { \"type\": \"string\" },\r",
+                  "        \"totalprice\": { \"type\": \"number\" },\r",
+                  "        \"depositpaid\": { \"type\": \"boolean\" },\r",
+                  "        \"bookingdates\": {\r",
+                  "            \"type\": \"object\",\r",
+                  "            \"properties\": {\r",
+                  "                \"checkin\": { \"type\": \"string\" },\r",
+                  "                \"checkout\": { \"type\": \"string\" }\r",
+                  "            },\r",
+                  "            \"required\": [\"checkin\", \"checkout\"]\r",
+                  "        },\r",
+                  "        \"additionalneeds\": { \"type\": \"string\" }\r",
+                  "    },\r",
+                  "    \"required\": [\"firstname\", \"lastname\", \"totalprice\", \"depositpaid\", \"bookingdates\"]\r",
+                  "};\r",
+                  "\r",
+                  "pm.test(\"Response matches expected JSON Schema and data types\", function () {\r",
+                  "    pm.expect(responseData, \"Response body is not valid JSON\").to.not.be.null;\r",
+                  "    pm.expect(tv4.validate(responseData, getBookingSchema)).to.be.true;\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. BUSINESS LOGIC & DATA INTEGRITY VALIDATIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"Verify field values and date logic integrity\", function () {\r",
+                  "    // Non-empty strings and positive numeric checks\r",
+                  "    pm.expect(responseData.firstname).to.be.a(\"string\").that.is.not.empty;\r",
+                  "    pm.expect(responseData.lastname).to.be.a(\"string\").that.is.not.empty;\r",
+                  "    pm.expect(responseData.totalprice).to.be.above(0);\r",
+                  "\r",
+                  "    // Date format (YYYY-MM-DD) and logical sequence (checkout >= checkin)\r",
+                  "    const dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\r",
+                  "    pm.expect(responseData.bookingdates.checkin).to.match(dateRegex);\r",
+                  "    pm.expect(responseData.bookingdates.checkout).to.match(dateRegex);\r",
+                  "\r",
+                  "    const checkinDate = new Date(responseData.bookingdates.checkin);\r",
+                  "    const checkoutDate = new Date(responseData.bookingdates.checkout);\r",
+                  "    pm.expect(checkoutDate.getTime()).to.be.at.least(checkinDate.getTime());\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. CROSS-REQUEST STATE COMPARISON (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"Verify retrieved data matches latest environment state\", function () {\r",
+                  "    // Dynamically checks against PATCH, PUT, or POST variables depending on what ran last\r",
+                  "    const expectedFname = pm.environment.get(\"patch_fname\") || pm.environment.get(\"put_fname\") || pm.environment.get(\"fname\");\r",
+                  "    const expectedLname = pm.environment.get(\"put_lname\") || pm.environment.get(\"lname\");\r",
+                  "\r",
+                  "    if (expectedFname) {\r",
+                  "        pm.expect(responseData.firstname).to.eql(expectedFname);\r",
+                  "    }\r",
+                  "    if (expectedLname) {\r",
+                  "        pm.expect(responseData.lastname).to.eql(expectedLname);\r",
+                  "    }\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteBooking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetAfterDelete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {\r",
+                  "    pm.response.to.have.status(404);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E2E-TS-CreateAndPatch",
+      "item": [
+        {
+          "name": "CreateAuth Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body safely\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE & REASON ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#2 Status text is OK\", function () {\r",
+                  "    pm.response.to.have.status(\"OK\");\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#3 Content-Type header is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#4 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE TOKEN IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Extract token and update environment variable\", function () {\r",
+                  "    // Assert response contains token property\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"token\");\r",
+                  "    \r",
+                  "    const tokenValue = responseDataJSON[\"token\"];\r",
+                  "\r",
+                  "    // Validate token is a non-empty string\r",
+                  "    pm.expect(tokenValue).to.be.a(\"string\").that.is.not.empty;\r",
+                  "\r",
+                  "    // Dynamically update environment variable key 'token'\r",
+                  "    pm.environment.set(\"token\", tokenValue);\r",
+                  "    console.log(\"[POST /auth] Updated 'token' in Environment:\", tokenValue);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. JSON SCHEMA VALIDATION\r",
+                  "// ============================================================\r",
+                  "const tokenSchema = {\r",
+                  "    \"type\": \"object\",\r",
+                  "    \"properties\": {\r",
+                  "        \"token\": { \"type\": \"string\" }\r",
+                  "    },\r",
+                  "    \"required\": [\"token\"]\r",
+                  "};\r",
+                  "\r",
+                  "pm.test(\"TC#6 Validate response JSON schema\", function () {\r",
+                  "    pm.expect(tv4.validate(responseDataJSON, tokenSchema)).to.be.true;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\" : \"admin\",\r\n    \"password\" : \"password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/auth",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CreateBooking Copy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ============================================================\r",
+                  "// PRE-REQUEST SCRIPT: GENERATE RANDOM DATA FOR POST REQUEST\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "// 1. Generate dynamic string values\r",
+                  "const randomId = Math.floor(Math.random() * 1000);\r",
+                  "const fname = \"User_\" + randomId;\r",
+                  "const lname = \"Test_\" + Math.random().toString(36).substring(7);\r",
+                  "\r",
+                  "// 2. Generate dynamic numeric & boolean values\r",
+                  "const price = Math.floor(Math.random() * (1000 - 100 + 1)) + 100;\r",
+                  "const deposit = Math.random() < 0.5; // True or false\r",
+                  "\r",
+                  "// 3. Generate dynamic checkin and checkout dates\r",
+                  "const today = new Date();\r",
+                  "const checkin = today.toISOString().split('T')[0];\r",
+                  "\r",
+                  "const futureDate = new Date(today);\r",
+                  "futureDate.setDate(today.getDate() + 5);\r",
+                  "const checkout = futureDate.toISOString().split('T')[0];\r",
+                  "\r",
+                  "// 4. Set dynamic picklist item\r",
+                  "const needsOptions = [\"Breakfast\", \"Lunch\", \"Airport Pickup\", \"Extra Bed\"];\r",
+                  "const needs = needsOptions[Math.floor(Math.random() * needsOptions.length)];\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// SET ENVIRONMENT VARIABLES IN POSTMAN\r",
+                  "// ============================================================\r",
+                  "pm.environment.set(\"fname\", fname);\r",
+                  "pm.environment.set(\"lname\", lname);\r",
+                  "pm.environment.set(\"price\", price);\r",
+                  "pm.environment.set(\"deposit\", deposit);\r",
+                  "pm.environment.set(\"checkin\", checkin);\r",
+                  "pm.environment.set(\"checkout\", checkout);\r",
+                  "pm.environment.set(\"needs\", needs);\r",
+                  "\r",
+                  "console.log(`[Pre-Request POST] Generated dynamic booking for ${fname} ${lname}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE ASSERTION\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK or 201 Created\", function () {\r",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#2 Response header Content-Type is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#3 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE BOOKING ID IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#4 Extract bookingid and update environment variable\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"bookingid\");\r",
+                  "    \r",
+                  "    const dynamicBookingId = responseDataJSON[\"bookingid\"];\r",
+                  "    \r",
+                  "    pm.expect(dynamicBookingId).to.not.be.null;\r",
+                  "    pm.expect(dynamicBookingId).to.be.a(\"number\");\r",
+                  "\r",
+                  "    // Dynamically set / update the environment variable key 'booking_id'\r",
+                  "    pm.environment.set(\"booking_id\", dynamicBookingId);\r",
+                  "    console.log(\"[POST Response] Successfully updated 'booking_id' in environment:\", dynamicBookingId);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. PAYLOAD VALIDATIONS & DATA MATCHING\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Verify response body structure and field values\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"booking\");\r",
+                  "    const booking = responseDataJSON.booking;\r",
+                  "\r",
+                  "    // Verify response matches pre-request variables sent in request\r",
+                  "    pm.expect(booking.firstname).to.eql(pm.environment.get(\"fname\"));\r",
+                  "    pm.expect(booking.lastname).to.eql(pm.environment.get(\"lname\"));\r",
+                  "    pm.expect(booking.totalprice).to.eql(pm.environment.get(\"price\"));\r",
+                  "    pm.expect(booking.depositpaid).to.eql(pm.environment.get(\"deposit\"));\r",
+                  "    pm.expect(booking.bookingdates.checkin).to.eql(pm.environment.get(\"checkin\"));\r",
+                  "    pm.expect(booking.bookingdates.checkout).to.eql(pm.environment.get(\"checkout\"));\r",
+                  "    pm.expect(booking.additionalneeds).to.eql(pm.environment.get(\"needs\"));\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"firstname\": \"{{fname}}\",\r\n    \"lastname\": \"{{lname}}\",\r\n    \"totalprice\": {{price}},\r\n    \"depositpaid\": {{deposit}},\r\n    \"bookingdates\": {\r\n        \"checkin\": \"{{checkin}}\",\r\n        \"checkout\": \"{{checkout}}\"\r\n    },\r\n    \"additionalneeds\": \"{{needs}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/booking",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PartialUpdate Copy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ============================================================\r",
+                  "// PRE-REQUEST SCRIPT: GENERATE RANDOM DATA FOR PATCH REQUEST\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "// 1. Generate dynamic string values for patched fields\r",
+                  "const randomId = Math.floor(Math.random() * 1000);\r",
+                  "const patchFirstname = \"PatchedUser_\" + randomId;\r",
+                  "\r",
+                  "const patchNeedsList = [\"Late Checkout\", \"Extra Towels\", \"Airport Shuttle\", \"VIP Welcome Drink\"];\r",
+                  "const patchNeeds = patchNeedsList[Math.floor(Math.random() * patchNeedsList.length)];\r",
+                  "\r",
+                  "// 2. Set values into Environment Variables\r",
+                  "pm.environment.set(\"patch_fname\", patchFirstname);\r",
+                  "pm.environment.set(\"patch_needs\", patchNeeds);\r",
+                  "\r",
+                  "console.log(`[Pre-Request PATCH] Generated dynamic patch data -> Firstname: ${patchFirstname}, Needs: ${patchNeeds}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Safely parse JSON response body\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#2 Status text is OK\", function () {\r",
+                  "    pm.response.to.have.status(\"OK\");\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#3 Content-Type header is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#4 Response time is below 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. PAYLOAD & FIELD VALIDATIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Verify response body contains valid JSON payload\", function () {\r",
+                  "    pm.expect(responseDataJSON, \"Response body is not valid JSON. Ensure auth cookie and booking_id are valid.\").to.not.be.null;\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#6 Verify patched fields match dynamic pre-request variables\", function () {\r",
+                  "    pm.expect(responseDataJSON.firstname).to.eql(pm.environment.get(\"patch_fname\"));\r",
+                  "    pm.expect(responseDataJSON.additionalneeds).to.eql(pm.environment.get(\"patch_needs\"));\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#7 Verify response schema properties and data types\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"lastname\");\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"totalprice\");\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"depositpaid\");\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"bookingdates\");\r",
+                  "\r",
+                  "    pm.expect(responseDataJSON.lastname).to.be.a(\"string\");\r",
+                  "    pm.expect(responseDataJSON.totalprice).to.be.a(\"number\");\r",
+                  "    pm.expect(responseDataJSON.depositpaid).to.be.a(\"boolean\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"firstname\": \"{{patch_fname}}\",\r\n    \"additionalneeds\": \"{{patch_needs}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getSingleRecordById Copy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E2E-TS-CreateAndGet",
+      "item": [
+        {
+          "name": "CreateAuth Copy 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body safely\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE & REASON ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#2 Status text is OK\", function () {\r",
+                  "    pm.response.to.have.status(\"OK\");\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#3 Content-Type header is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#4 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE TOKEN IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Extract token and update environment variable\", function () {\r",
+                  "    // Assert response contains token property\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"token\");\r",
+                  "    \r",
+                  "    const tokenValue = responseDataJSON[\"token\"];\r",
+                  "\r",
+                  "    // Validate token is a non-empty string\r",
+                  "    pm.expect(tokenValue).to.be.a(\"string\").that.is.not.empty;\r",
+                  "\r",
+                  "    // Dynamically update environment variable key 'token'\r",
+                  "    pm.environment.set(\"token\", tokenValue);\r",
+                  "    console.log(\"[POST /auth] Updated 'token' in Environment:\", tokenValue);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. JSON SCHEMA VALIDATION\r",
+                  "// ============================================================\r",
+                  "const tokenSchema = {\r",
+                  "    \"type\": \"object\",\r",
+                  "    \"properties\": {\r",
+                  "        \"token\": { \"type\": \"string\" }\r",
+                  "    },\r",
+                  "    \"required\": [\"token\"]\r",
+                  "};\r",
+                  "\r",
+                  "pm.test(\"TC#6 Validate response JSON schema\", function () {\r",
+                  "    pm.expect(tv4.validate(responseDataJSON, tokenSchema)).to.be.true;\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"username\" : \"admin\",\r\n    \"password\" : \"password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/auth",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CreateBooking Copy 2",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ============================================================\r",
+                  "// PRE-REQUEST SCRIPT: GENERATE RANDOM DATA FOR POST REQUEST\r",
+                  "// ============================================================\r",
+                  "\r",
+                  "// 1. Generate dynamic string values\r",
+                  "const randomId = Math.floor(Math.random() * 1000);\r",
+                  "const fname = \"User_\" + randomId;\r",
+                  "const lname = \"Test_\" + Math.random().toString(36).substring(7);\r",
+                  "\r",
+                  "// 2. Generate dynamic numeric & boolean values\r",
+                  "const price = Math.floor(Math.random() * (1000 - 100 + 1)) + 100;\r",
+                  "const deposit = Math.random() < 0.5; // True or false\r",
+                  "\r",
+                  "// 3. Generate dynamic checkin and checkout dates\r",
+                  "const today = new Date();\r",
+                  "const checkin = today.toISOString().split('T')[0];\r",
+                  "\r",
+                  "const futureDate = new Date(today);\r",
+                  "futureDate.setDate(today.getDate() + 5);\r",
+                  "const checkout = futureDate.toISOString().split('T')[0];\r",
+                  "\r",
+                  "// 4. Set dynamic picklist item\r",
+                  "const needsOptions = [\"Breakfast\", \"Lunch\", \"Airport Pickup\", \"Extra Bed\"];\r",
+                  "const needs = needsOptions[Math.floor(Math.random() * needsOptions.length)];\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// SET ENVIRONMENT VARIABLES IN POSTMAN\r",
+                  "// ============================================================\r",
+                  "pm.environment.set(\"fname\", fname);\r",
+                  "pm.environment.set(\"lname\", lname);\r",
+                  "pm.environment.set(\"price\", price);\r",
+                  "pm.environment.set(\"deposit\", deposit);\r",
+                  "pm.environment.set(\"checkin\", checkin);\r",
+                  "pm.environment.set(\"checkout\", checkout);\r",
+                  "pm.environment.set(\"needs\", needs);\r",
+                  "\r",
+                  "console.log(`[Pre-Request POST] Generated dynamic booking for ${fname} ${lname}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse JSON response body\r",
+                  "let responseDataJSON;\r",
+                  "try {\r",
+                  "    responseDataJSON = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "    responseDataJSON = null;\r",
+                  "}\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 1. STATUS CODE ASSERTION\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#1 Status code is 200 OK or 201 Created\", function () {\r",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 2. HEADER & RESPONSE TIME ASSERTIONS\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#2 Response header Content-Type is application/json\", function () {\r",
+                  "    pm.response.to.have.header(\"Content-Type\");\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"TC#3 Response time is under 2000ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 3. STORE & UPDATE BOOKING ID IN ENVIRONMENT (API CHAINING)\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#4 Extract bookingid and update environment variable\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"bookingid\");\r",
+                  "    \r",
+                  "    const dynamicBookingId = responseDataJSON[\"bookingid\"];\r",
+                  "    \r",
+                  "    pm.expect(dynamicBookingId).to.not.be.null;\r",
+                  "    pm.expect(dynamicBookingId).to.be.a(\"number\");\r",
+                  "\r",
+                  "    // Dynamically set / update the environment variable key 'booking_id'\r",
+                  "    pm.environment.set(\"booking_id\", dynamicBookingId);\r",
+                  "    console.log(\"[POST Response] Successfully updated 'booking_id' in environment:\", dynamicBookingId);\r",
+                  "});\r",
+                  "\r",
+                  "// ============================================================\r",
+                  "// 4. PAYLOAD VALIDATIONS & DATA MATCHING\r",
+                  "// ============================================================\r",
+                  "pm.test(\"TC#5 Verify response body structure and field values\", function () {\r",
+                  "    pm.expect(responseDataJSON).to.have.property(\"booking\");\r",
+                  "    const booking = responseDataJSON.booking;\r",
+                  "\r",
+                  "    // Verify response matches pre-request variables sent in request\r",
+                  "    pm.expect(booking.firstname).to.eql(pm.environment.get(\"fname\"));\r",
+                  "    pm.expect(booking.lastname).to.eql(pm.environment.get(\"lname\"));\r",
+                  "    pm.expect(booking.totalprice).to.eql(pm.environment.get(\"price\"));\r",
+                  "    pm.expect(booking.depositpaid).to.eql(pm.environment.get(\"deposit\"));\r",
+                  "    pm.expect(booking.bookingdates.checkin).to.eql(pm.environment.get(\"checkin\"));\r",
+                  "    pm.expect(booking.bookingdates.checkout).to.eql(pm.environment.get(\"checkout\"));\r",
+                  "    pm.expect(booking.additionalneeds).to.eql(pm.environment.get(\"needs\"));\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"firstname\": \"{{fname}}\",\r\n    \"lastname\": \"{{lname}}\",\r\n    \"totalprice\": {{price}},\r\n    \"depositpaid\": {{deposit}},\r\n    \"bookingdates\": {\r\n        \"checkin\": \"{{checkin}}\",\r\n        \"checkout\": \"{{checkout}}\"\r\n    },\r\n    \"additionalneeds\": \"{{needs}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{url}}/booking",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetRecordByFirstNameAndLastName",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "//Capturing response data in a variable",
+                  "const responseData = pm.response.json();",
+                  "",
+                  "//Checking status code",
+                  "pm.test(\"TC#1 Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "//Checking if the booking ID is returned and saved in the environment variable booking_id",
+                  "pm.test(\"TC#2 Verify matching booking ID is returned and saved\", function () {",
+                  "    pm.expect(responseData).to.be.an(\"array\");",
+                  "    ",
+                  "    if (responseData.length > 0) {",
+                  "        // Extract the bookingid from the first matching object in the array",
+                  "        const matchedId = responseData[0].bookingid;",
+                  "        pm.expect(matchedId).to.be.a(\"number\");",
+                  "",
+                  "        // Save to environment for the next request in the chain",
+                  "        pm.environment.set(\"booking_id\", matchedId);",
+                  "        console.log(\"Captured booking_id from search:\", matchedId);",
+                  "    } else {",
+                  "        console.log(\"No bookings found for the given criteria.\");",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{url}}/booking?firstname={{fname}}&lastname={{lname}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking"
+              ],
+              "query": [
+                {
+                  "key": "firstname",
+                  "value": "{{fname}}"
+                },
+                {
+                  "key": "lastname",
+                  "value": "{{lname}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getRecords",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "//TC#1 -> Checking that response time is less than 200ms.\r",
+                  "pm.test(\"Response time is less than 200ms\", function () {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(200);\r",
+                  "});\r",
+                  "\r",
+                  "//TC#2 -> Checking that response body contains bookingid.\r",
+                  "pm.test(\"Body matches string\", function () {\r",
+                  "    pm.expect(pm.response.text()).to.include(\"bookingid\");\r",
+                  "});\r",
+                  "\r",
+                  "\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{url}}/booking/{{booking_id}}",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PingCheck Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "//TC#1 -> Checking status code",
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "//TC#2 -> Checking response text",
+                  "pm.test(\"Body matches string\", function () {",
+                  "    pm.expect(pm.response.text()).to.include(\"Created\");",
+                  "});",
+                  "",
+                  "//TC#3 -> Checking Content Type Header is present and correct.",
+                  "pm.test(\"Content-Type is present\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"text/plain\");",
+                  "});",
+                  "",
+                  "//TC#4 -> Checking response time",
+                  "pm.test(\"Response time is less than 600ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(600);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url}}/ping",
+              "host": [
+                "{{url}}"
+              ],
+              "path": [
+                "ping"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

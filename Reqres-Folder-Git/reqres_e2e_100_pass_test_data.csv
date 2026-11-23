@@ -1,0 +1,10 @@
+testCaseId,scenarioDescription,email,password,newJobTitle,expectedRegisterStatus,expectedLoginStatus,expectedGetStatus,expectedUpdateStatus,expectedDeleteStatus,expectedErrorMsg
+TC_01,Positive E2E: Valid Defined User (Eve),eve.holt@reqres.in,pistol,QA Architect,200,200,200.0,200.0,204.0,
+TC_02,Positive E2E: Valid Defined User (George),george.bluth@reqres.in,cityslicka,SDET Lead,200,200,200.0,200.0,204.0,
+TC_03,Mock API Behavior: Valid Email with Any Non-Empty Password,eve.holt@reqres.in,wrongPassword123!,QA Engineer,200,200,200.0,200.0,204.0,
+TC_04,Negative: Invalid Email and Valid Password,invalid.user@reqres.in,pistol,QA Engineer,400,400,,,,Note: Only defined users succeed registration
+TC_05,Negative: Missing Password,eve.holt@reqres.in,,QA Engineer,400,400,,,,Missing password
+TC_06,Negative: Missing Email,,pistol,QA Engineer,400,400,,,,Missing email or username
+TC_07,Negative: Both Email and Password Blank,,,QA Engineer,400,400,,,,Missing email or username
+TC_08,Negative: Undefined/Unregistered User,unregistered.user@reqres.in,secret123,QA Engineer,400,400,,,,Note: Only defined users succeed registration
+TC_09,Negative: Invalid Email Format,invalid-email-format,pistol,QA Engineer,400,400,,,,Note: Only defined users succeed registration

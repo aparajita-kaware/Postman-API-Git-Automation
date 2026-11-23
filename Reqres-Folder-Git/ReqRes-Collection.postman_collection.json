@@ -1,0 +1,495 @@
+{
+  "info": {
+    "_postman_id": "ce07866d-9ad1-40d1-9e17-cb9a73ea348f",
+    "name": "ReqRes-Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "60362778",
+    "_collection_link": "https://go.postman.co/collection/60362778-ce07866d-9ad1-40d1-9e17-cb9a73ea348f?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "RegisterUser",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Reset chained environment variables at the start of every CSV row\r",
+              "pm.environment.unset(\"userId\");\r",
+              "pm.environment.unset(\"authToken\");\r",
+              "\r",
+              "// 2. Dynamically build JSON body so blank CSV cells are omitted cleanly\r",
+              "const email = pm.iterationData.get(\"email\");\r",
+              "const password = pm.iterationData.get(\"password\");\r",
+              "\r",
+              "const payload = {};\r",
+              "if (email !== undefined && email !== \"\") payload.email = email;\r",
+              "if (password !== undefined && password !== \"\") payload.password = password;\r",
+              "\r",
+              "pm.environment.set(\"dynamicAuthPayload\", JSON.stringify(payload));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const tcId = pm.iterationData.get(\"testCaseId\") || \"N/A\";",
+              "const desc = pm.iterationData.get(\"scenarioDescription\") || \"Manual Run\";",
+              "const expectedStatus = Number(pm.iterationData.get(\"expectedRegisterStatus\")) || pm.response.code;",
+              "const responseData = pm.response.json();",
+              "",
+              "pm.test(`[${tcId}] ${desc} - Status is ${expectedStatus}`, function () {",
+              "    pm.response.to.have.status(expectedStatus);",
+              "});",
+              "",
+              "// New tests for coverage",
+              "pm.test(`[${tcId}] Response time is within acceptable limits`, function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});",
+              "",
+              "pm.test(`[${tcId}] Content-Type is application/json`, function () {",
+              "    pm.response.to.have.header(\"Content-Type\", \"application/json; charset=utf-8\");",
+              "});",
+              "",
+              "if (pm.response.code === 200 && expectedStatus === 200) {",
+              "    pm.test(`[${tcId}] Registration returns valid ID and Token`, function () {",
+              "        pm.expect(responseData).to.have.property(\"id\");",
+              "        pm.expect(responseData).to.have.property(\"token\").that.is.a(\"string\").and.not.empty;",
+              "    });",
+              "",
+              "    // Save chained values into Environment for Requests 2-5",
+              "    pm.environment.set(\"userId\", responseData.id);",
+              "    pm.environment.set(\"authToken\", responseData.token);",
+              "} else {",
+              "    const expectedError = pm.iterationData.get(\"expectedErrorMsg\");",
+              "    if (expectedError) {",
+              "        pm.test(`[${tcId}] Error message matches '${expectedError}'`, function () {",
+              "            pm.expect(responseData.error).to.eql(expectedError);",
+              "        });",
+              "    }",
+              "",
+              "    // Short-circuit Requests 2-5 for negative test cases (TC_03 - TC_09)",
+              "    pm.execution.setNextRequest(null);",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{dynamicAuthPayload}}\r\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURL}}/register",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "LoginUser",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Rebuild dynamic payload independently so Request 2 can also run standalone\r",
+              "const email = pm.iterationData.get(\"email\");\r",
+              "const password = pm.iterationData.get(\"password\");\r",
+              "\r",
+              "const payload = {};\r",
+              "if (email !== undefined && email !== \"\") payload.email = email;\r",
+              "if (password !== undefined && password !== \"\") payload.password = password;\r",
+              "\r",
+              "pm.environment.set(\"dynamicAuthPayload\", JSON.stringify(payload));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const tcId = pm.iterationData.get(\"testCaseId\");\r",
+              "const expectedStatus = Number(pm.iterationData.get(\"expectedLoginStatus\"));\r",
+              "const responseData = pm.response.json();\r",
+              "\r",
+              "pm.test(`[${tcId}] Login status is ${expectedStatus}`, function () {\r",
+              "    pm.response.to.have.status(expectedStatus);\r",
+              "});\r",
+              "\r",
+              "pm.test(`[${tcId}] Login returns valid session token`, function () {\r",
+              "    pm.expect(responseData).to.have.property(\"token\").that.is.a(\"string\").and.not.empty;\r",
+              "});\r",
+              "\r",
+              "// Update environment token with fresh login token\r",
+              "pm.environment.set(\"authToken\", responseData.token);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{dynamicAuthPayload}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURL}}/login",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GetUserProfile",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Guard check: ensure userId and authToken were populated by prior steps\r",
+              "if (!pm.environment.get(\"userId\") || !pm.environment.get(\"authToken\")) {\r",
+              "    throw new Error(\"Missing chained 'userId' or 'authToken' in Environment.\");\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const tcId = pm.iterationData.get(\"testCaseId\");\r",
+              "const expectedStatus = Number(pm.iterationData.get(\"expectedGetStatus\"));\r",
+              "const expectedUserId = Number(pm.environment.get(\"userId\"));\r",
+              "const expectedEmail = pm.iterationData.get(\"email\");\r",
+              "const responseData = pm.response.json();\r",
+              "\r",
+              "pm.test(`[${tcId}] Get User status is ${expectedStatus}`, function () {\r",
+              "    pm.response.to.have.status(expectedStatus);\r",
+              "});\r",
+              "\r",
+              "pm.test(`[${tcId}] Profile ID and Email match CSV dataset`, function () {\r",
+              "    pm.expect(responseData.data.id).to.eql(expectedUserId);\r",
+              "    pm.expect(responseData.data.email).to.eql(expectedEmail);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "apikey",
+          "apikey": [
+            {
+              "key": "value",
+              "value": "{{apiKey}}",
+              "type": "string"
+            },
+            {
+              "key": "key",
+              "value": "x-api-key",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/users/{{userId}}",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "UpdateUserJob",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Construct update payload dynamically from CSV row\r",
+              "const updatePayload = {\r",
+              "    name: pm.iterationData.get(\"email\"),\r",
+              "    job: pm.iterationData.get(\"newJobTitle\") || \"Default QA Role\"\r",
+              "};\r",
+              "\r",
+              "pm.environment.set(\"dynamicUpdatePayload\", JSON.stringify(updatePayload));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const tcId = pm.iterationData.get(\"testCaseId\");\r",
+              "const expectedStatus = Number(pm.iterationData.get(\"expectedUpdateStatus\"));\r",
+              "const expectedJob = pm.iterationData.get(\"newJobTitle\");\r",
+              "const responseData = pm.response.json();\r",
+              "\r",
+              "pm.test(`[${tcId}] Update User status is ${expectedStatus}`, function () {\r",
+              "    pm.response.to.have.status(expectedStatus);\r",
+              "});\r",
+              "\r",
+              "pm.test(`[${tcId}] Updated job title matches '${expectedJob}'`, function () {\r",
+              "    pm.expect(responseData.job).to.eql(expectedJob);\r",
+              "    pm.expect(responseData).to.have.property(\"updatedAt\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{dynamicUpdatePayload}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURL}}/users/{{userId}}",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DeleteUser",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Log target user ID being cleaned up for audit traceability in Postman Console\r",
+              "const targetId = pm.environment.get(\"userId\");\r",
+              "const tcId = pm.iterationData.get(\"testCaseId\");\r",
+              "console.log(`[${tcId}] Executing cleanup DELETE for userId: ${targetId}`);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const tcId = pm.iterationData.get(\"testCaseId\");\r",
+              "const expectedStatus = Number(pm.iterationData.get(\"expectedDeleteStatus\"));\r",
+              "\r",
+              "pm.test(`[${tcId}] Delete User status is ${expectedStatus} (No Content)`, function () {\r",
+              "    pm.response.to.have.status(expectedStatus);\r",
+              "    pm.expect(pm.response.text()).to.be.empty;\r",
+              "});\r",
+              "\r",
+              "// Clean up temporary environment variables at the end of the E2E iteration\r",
+              "pm.environment.unset(\"userId\");\r",
+              "pm.environment.unset(\"authToken\");\r",
+              "pm.environment.unset(\"dynamicAuthPayload\");\r",
+              "pm.environment.unset(\"dynamicUpdatePayload\");"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "apikey",
+          "apikey": [
+            {
+              "key": "value",
+              "value": "{{apiKey}}",
+              "type": "string"
+            },
+            {
+              "key": "key",
+              "value": "x-api-key",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/users/{{userId}}",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// Reset chained environment/collection variables on the first request of each CSV row\r",
+          "if (pm.info.requestName === \"1. Register User\") {\r",
+          "    pm.collectionVariables.unset(\"userId\");\r",
+          "    pm.collectionVariables.unset(\"authToken\");\r",
+          "}\r",
+          "\r",
+          "// Dynamically build JSON payload so blank CSV cells are omitted (or sent cleanly)\r",
+          "const email = pm.iterationData.get(\"email\");\r",
+          "const password = pm.iterationData.get(\"password\");\r",
+          "\r",
+          "if (pm.info.requestName === \"1. Register User\" || pm.info.requestName === \"2. Login User\") {\r",
+          "    const payload = {};\r",
+          "    if (email !== undefined && email !== \"\") payload.email = email;\r",
+          "    if (password !== undefined && password !== \"\") payload.password = password;\r",
+          "    \r",
+          "    pm.collectionVariables.set(\"dynamicAuthPayload\", JSON.stringify(payload));\r",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}
